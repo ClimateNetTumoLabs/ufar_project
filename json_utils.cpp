@@ -1,20 +1,17 @@
 #include "json_utils.h"
+#include "sd_logger.h"
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include "rtc_utils.h"
 #include "config.h"
 
-#if DEBUG
-  #define DBG(x) Serial.println(x)
-  #define DBG2(x,y) Serial.print(x); Serial.println(y)
-#else
-  #define DBG(x)
-  #define DBG2(x,y) Serial.print(x); Serial.println(y)
-#endif
+// ===================== JSON / HTTP =====================
 
-String prepareJSON(const char* deviceId, time_t t, MeasurementData data){
+String prepareJSON(const char* deviceId, time_t t, MeasurementData data) {
   StaticJsonDocument<512> doc;
-  doc["device"] = deviceId;
+  char buffer[20];
+  snprintf(buffer, sizeof(buffer), "device%s", deviceId);
+  doc["device"] = buffer;
   JsonObject d = doc.createNestedArray("data").createNestedObject();
   d["time"] = timeToStr(t);
   d["temperature"] = data.temperature;
@@ -27,15 +24,35 @@ String prepareJSON(const char* deviceId, time_t t, MeasurementData data){
   d["voc"] = data.voc;
 
   String payload;
-  serializeJsonPretty(doc, payload);
+  serializeJson(doc, payload);
+
+  logToSD("[JSON] Payload prepared (" + String(payload.length()) + " bytes)");
+
   return payload;
 }
 
-void sendHTTP(String payload){
+bool sendHTTP(String payload) {
+  logToSD("[HTTP] Sending to: " + String(POST_URL));
+
   HTTPClient http;
   http.begin(POST_URL);
   http.addHeader("Content-Type", "application/json");
+  http.setTimeout(15000);
+
   int status = http.POST(payload);
-  DBG2("[HTTP] Status: ", status);
+
+  logToSD("[HTTP] Response code: " + String(status));
+
+  if (status > 0) {
+    String response = http.getString();
+    if (response.length() > 0 && response.length() < 200) {
+      logToSD("[HTTP] Response: " + response);
+    }
+  } else {
+    logToSD("[HTTP] ERROR: " + http.errorToString(status));
+  }
+
   http.end();
+
+  return (status == 200 || status == 201);
 }
