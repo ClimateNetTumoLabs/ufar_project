@@ -11,7 +11,7 @@
 // ===================== RTC Memory (persists through deep sleep) =====================
 RTC_DATA_ATTR time_t lastMeasurementTime = 0;
 RTC_DATA_ATTR uint32_t bootCount = 0;
-RTC_DATA_ATTR bool timeIsSynced = false;
+RTC_DATA_ATTR bool timeIsSynced = false;  
 
 // ===================== Sensor Objects =====================
 BME280Sensor bme280;
