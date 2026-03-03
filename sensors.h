@@ -12,7 +12,6 @@ public:
     bool init(uint8_t address = 0x76);
     void start();
     void stop();     // not really supported, kept for interface consistency
-    void sleep();    // same as stop for BME280
 
     bool read(float &temperature, float &humidity, float &pressure);
 
@@ -26,7 +25,6 @@ public:
     bool init();
     void start(uint16_t pressure_hPa = 0); // optional pressure compensation
     void stop();                           // no true stop, but interval can be increased
-    void sleep();                          // alias for stop
 
     bool read(float &co2);
 
@@ -40,7 +38,6 @@ public:
     bool init();
     void start();
     void stop();   // heater off
-    void sleep();  // heater off
 
     bool read(int32_t &vocIndex, float temperature = 25.0, float humidity = 50.0);
 
@@ -56,7 +53,6 @@ public:
     bool init();
     bool start();
     bool stop();
-    bool sleep();
     bool wakeUp();
     bool read(float &pm1, float &pm25, float &pm10);
 

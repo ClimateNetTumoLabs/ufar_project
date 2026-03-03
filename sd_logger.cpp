@@ -107,6 +107,18 @@ void flushSDLog() {
   logBuffer = "";
 }
 
+void shutdownSD() {
+  flushSDLog();
+  SD.end();
+  SPI.end();
+  // Isolate SPI pins to prevent leakage through SD card
+  // LilyGO T-SIM7000G SD pins: MISO=2, MOSI=15, SCLK=14, CS=13
+  pinMode(2,  INPUT);
+  pinMode(15, INPUT);
+  pinMode(14, INPUT);
+  pinMode(13, INPUT);
+}
+
 // ===================== Combined log: data row =====================
 
 // Writes a human-readable DATA line into the same daily log file.
@@ -279,5 +291,3 @@ bool flushPendingQueue() {
   logToSD("[QUEUE] All queued entries sent, queue cleared");
   return true;
 }
-
-

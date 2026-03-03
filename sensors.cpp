@@ -20,10 +20,6 @@ void BME280Sensor::stop() {
     bme.setSampling(Adafruit_BME280::MODE_SLEEP);
 }
 
-void BME280Sensor::sleep() {
-    stop();
-}
-
 bool BME280Sensor::read(float &temperature, float &humidity, float &pressure) {
     temperature = bme.readTemperature();
     humidity    = bme.readHumidity();
@@ -45,12 +41,11 @@ void SCD30Sensor::start(uint16_t pressure_hPa) {
 }
 
 void SCD30Sensor::stop() {
-    // No real stop command, best we can do is slow it down
-    scd30.setMeasurementInterval(60);
-}
-
-void SCD30Sensor::sleep() {
-    stop();
+    // Send stop measurement command 0x0104 directly over I2C
+    Wire.beginTransmission(0x61); // SCD30_I2CADDR_DEFAULT
+    Wire.write(0x01);
+    Wire.write(0x04);
+    Wire.endTransmission();
 }
 
 bool SCD30Sensor::read(float &co2) {
@@ -73,10 +68,6 @@ void SGP40Sensor::start() {
 
 void SGP40Sensor::stop() {
     sgp40.heaterOff();
-}
-
-void SGP40Sensor::sleep() {
-    stop();
 }
 
 bool SGP40Sensor::read(int32_t &vocIndex, float temperature, float humidity) {
@@ -122,11 +113,6 @@ bool SPS30Sensor::start() {
 
 bool SPS30Sensor::stop() {
     return writeCommand(0x0104); // Stop measurement
-}
-
-bool SPS30Sensor::sleep() {
-    writeCommand(0x1001); // Sleep command
-    return true;
 }
 
 bool SPS30Sensor::wakeUp() {

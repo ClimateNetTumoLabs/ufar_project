@@ -5,6 +5,7 @@
 bool initSDCard();
 void logToSD(String message);
 void flushSDLog();
+void shutdownSD(); // flush + end SPI + isolate pins before deep sleep
 
 // Combined log file (logs + data lines, always written)
 void logDataToFile(time_t timestamp, float temp, float hum, float press,

@@ -10,7 +10,7 @@
 #define POST_URL ""
 /* ================= MEASUREMENT INTERVALS ================= */
 // Send interval in minutes
-#define MEASURE_INTERVAL_MIN 5
+#define MEASURE_INTERVAL_MIN 10
 
 // SPS30 warm-up time in seconds
 #define SPS30_WARMUP_SEC 30
@@ -32,8 +32,8 @@
 #define I2C_POWER_PIN 25
 
 // Modem power pins (disabled to save power, not using SIM)
-#define MODEM_PWRKEY 4
-#define MODEM_POWER_ON 23
+#define MODEM_PWRKEY -1
+#define MODEM_POWER_ON -1
 
 /* ================= AWS S3 ================= */
 // S3 bucket region, e.g. "us-east-1"
