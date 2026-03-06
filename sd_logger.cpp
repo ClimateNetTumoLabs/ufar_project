@@ -7,12 +7,6 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
-// LilyGO T-SIM7000G SD card pins
-#define SD_MISO     2
-#define SD_MOSI     15
-#define SD_SCLK     14
-#define SD_CS       13
-
 bool sdInitialized = false;
 String logBuffer = "";
 const int LOG_BUFFER_SIZE = 1024;
@@ -113,10 +107,10 @@ void shutdownSD() {
   SPI.end();
   // Isolate SPI pins to prevent leakage through SD card
   // LilyGO T-SIM7000G SD pins: MISO=2, MOSI=15, SCLK=14, CS=13
-  pinMode(2,  INPUT);
-  pinMode(15, INPUT);
-  pinMode(14, INPUT);
-  pinMode(13, INPUT);
+  pinMode(SD_MISO, INPUT_PULLDOWN);
+  pinMode(SD_MOSI, INPUT_PULLDOWN);
+  pinMode(SD_SCLK,    INPUT_PULLDOWN);
+  pinMode(SD_CS,      INPUT_PULLDOWN);
 }
 
 // ===================== Combined log: data row =====================
@@ -172,7 +166,7 @@ bool uploadLogToS3() {
   HTTPClient http;
   http.begin(url);
   http.addHeader("Content-Type", "text/plain");
-  http.setTimeout(60000); // 60s — large files need more time
+  http.setTimeout(30000); // 30s — large files need more time
 
   // Stream directly from SD card — no RAM buffer needed
   int status = http.sendRequest("PUT", &f, fileSize);

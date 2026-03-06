@@ -1,8 +1,16 @@
 #include "wifi_manager.h"
 #include "sd_logger.h"
 #include "config.h"
+#include <esp_wifi.h>
 #include <Arduino.h>
 
+void setCPUSpeed80() {
+    setCpuFrequencyMhz(80);
+}
+
+void setCPUSpeed240() {
+    setCpuFrequencyMhz(240);
+}
 bool connectWiFi() {
   logToSD("[WIFI] Connecting to WiFi...");
   
@@ -25,9 +33,13 @@ bool connectWiFi() {
 }
 
 void disconnectWiFi() {
-  logToSD("[WIFI] Disconnecting...");
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
+  if (WiFi.status() == WL_CONNECTED || WiFi.getMode() != WIFI_OFF) {
+    logToSD("[WIFI] Disconnecting...");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    esp_wifi_stop();
+    esp_wifi_deinit();
+  }
 }
 
 bool syncTime() {

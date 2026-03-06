@@ -10,7 +10,7 @@
 #define POST_URL ""
 /* ================= MEASUREMENT INTERVALS ================= */
 // Send interval in minutes
-#define MEASURE_INTERVAL_MIN 10
+#define MEASURE_INTERVAL_MIN 20
 
 // SPS30 warm-up time in seconds
 #define SPS30_WARMUP_SEC 30
@@ -32,9 +32,18 @@
 #define I2C_POWER_PIN 25
 
 // Modem power pins (disabled to save power, not using SIM)
-#define MODEM_PWRKEY -1
-#define MODEM_POWER_ON -1
-
+// T-SIM7000G modem pins
+#define MODEM_PWRKEY     4
+#define MODEM_POWER_ON   23
+#define MODEM_TX     27
+#define MODEM_RX     26
+#define MODEM_DTR    25
+#define MODEM_RST    5
+#define MODEM_LED    12
+#define SD_MISO     2
+#define SD_MOSI     15
+#define SD_SCLK     14
+#define SD_CS       13
 /* ================= AWS S3 ================= */
 // S3 bucket region, e.g. "us-east-1"
 #define S3_REGION ""
@@ -53,8 +62,9 @@
 #define DEBUG 1
 
 /* ================= SD CARD ================= */
-#define SD_LOG_DIR      "/ufar_project"
+#define SD_LOG_DIR      ""
 // Single combined log file — all logs and data rows, appended forever
-#define SD_LOG_FILE     "/ufar_project/device_" DEVICE_ID "_log.txt"
+#define SD_LOG_FILE     ""
 // Pending queue: one JSON payload per line, retried when connectivity returns
-#define SD_QUEUE_FILE   "/ufar_project/pending_queue.txt"
+#define SD_QUEUE_FILE   ""
+

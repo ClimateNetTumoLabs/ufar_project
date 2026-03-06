@@ -46,17 +46,15 @@ private:
 };
 
 // ===================== SPS30 =====================
-#define SPS30_I2C_ADDR 0x69
-
 class SPS30Sensor {
 public:
-    bool init();
+    bool init(uint8_t address = 0x69);
     bool start();
     bool stop();
-    bool wakeUp();
     bool read(float &pm1, float &pm25, float &pm10);
 
 private:
+    uint8_t _address;
     bool writeCommand(uint16_t cmd);
     uint8_t calcCRC(uint8_t d1, uint8_t d2);
     float bytesToFloatWithCRC(uint8_t *b);

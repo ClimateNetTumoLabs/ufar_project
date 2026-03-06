@@ -76,21 +76,9 @@ bool SGP40Sensor::read(int32_t &vocIndex, float temperature, float humidity) {
 }
 
 // ===================== SPS30 =====================
-bool SPS30Sensor::init() {
+bool SPS30Sensor::init(uint8_t address) {
+    _address = address;
     Wire.begin();
-    delay(100); // Give sensor time to boot
-    
-    // Wake up sensor with retry
-    for (int attempt = 0; attempt < 3; attempt++) {
-        if (wakeUp()) {
-            delay(100); // Wait for sensor to fully wake
-            return true;
-        }
-        delay(200);
-    }
-    
-    // If wake-up failed, still return true and try to use sensor
-    // (sensor might already be awake)
     delay(100);
     return true;
 }
@@ -98,7 +86,7 @@ bool SPS30Sensor::init() {
 bool SPS30Sensor::start() {
     // Start measurement command: 0x0010
     // Argument: 0x0300 (big endian format, IEEE754 float)
-    Wire.beginTransmission(SPS30_I2C_ADDR);
+    Wire.beginTransmission(_address);
     Wire.write(0x00);
     Wire.write(0x10);
     Wire.write(0x03);
@@ -115,21 +103,16 @@ bool SPS30Sensor::stop() {
     return writeCommand(0x0104); // Stop measurement
 }
 
-bool SPS30Sensor::wakeUp() {
-    bool result = writeCommand(0x1103); // Wake-up command
-    return result;
-}
-
 bool SPS30Sensor::read(float &pm1, float &pm25, float &pm10) {
     // Check if data is ready
-    Wire.beginTransmission(SPS30_I2C_ADDR);
+    Wire.beginTransmission(_address);
     Wire.write(0x02);
     Wire.write(0x02);
     if (Wire.endTransmission() != 0) return false;
     
     delay(20);
     
-    Wire.requestFrom(SPS30_I2C_ADDR, 3);
+    Wire.requestFrom(_address, 3);
     if (Wire.available() < 3) return false;
     
     uint8_t ready_h = Wire.read();
@@ -140,7 +123,7 @@ bool SPS30Sensor::read(float &pm1, float &pm25, float &pm10) {
     if (ready_l == 0x00) return false; // Not ready
     
     // Read measured values: 0x0300
-    Wire.beginTransmission(SPS30_I2C_ADDR);
+    Wire.beginTransmission(_address);
     Wire.write(0x03);
     Wire.write(0x00);
     if (Wire.endTransmission() != 0) return false;
@@ -148,7 +131,7 @@ bool SPS30Sensor::read(float &pm1, float &pm25, float &pm10) {
     delay(50);
     
     // Request 60 bytes (10 floats × 6 bytes each: 4 data + 2 CRC)
-    Wire.requestFrom(SPS30_I2C_ADDR, 60);
+    Wire.requestFrom(_address, 60);
     if (Wire.available() < 60) return false;
 
     uint8_t data[60];
@@ -165,7 +148,7 @@ bool SPS30Sensor::read(float &pm1, float &pm25, float &pm10) {
 }
 
 bool SPS30Sensor::writeCommand(uint16_t cmd) {
-    Wire.beginTransmission(SPS30_I2C_ADDR);
+    Wire.beginTransmission(_address);
     Wire.write(cmd >> 8);
     Wire.write(cmd & 0xFF);
     return (Wire.endTransmission() == 0);
