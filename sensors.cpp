@@ -79,7 +79,6 @@ bool SGP40Sensor::read(int32_t &vocIndex, float temperature, float humidity) {
 bool SPS30Sensor::init(uint8_t address) {
     _address = address;
     Wire.begin();
-    delay(100);
     return true;
 }
 

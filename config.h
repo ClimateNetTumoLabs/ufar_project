@@ -7,7 +7,8 @@
 
 /* ================= DEVICE ================= */
 #define DEVICE_ID ""
-#define POST_URL ""
+#define DATA_URL ""
+
 /* ================= MEASUREMENT INTERVALS ================= */
 // Send interval in minutes
 #define MEASURE_INTERVAL_MIN 20
@@ -34,23 +35,12 @@
 // Modem power pins (disabled to save power, not using SIM)
 // T-SIM7000G modem pins
 #define MODEM_PWRKEY     4
-#define MODEM_POWER_ON   23
 #define MODEM_TX     27
 #define MODEM_RX     26
-#define MODEM_DTR    25
-#define MODEM_RST    5
-#define MODEM_LED    12
 #define SD_MISO     2
 #define SD_MOSI     15
 #define SD_SCLK     14
 #define SD_CS       13
-/* ================= AWS S3 ================= */
-// S3 bucket region, e.g. "us-east-1"
-#define S3_REGION ""
-// S3 bucket name
-#define S3_BUCKET ""
-// Bucket policy must allow anonymous PUT on the logs prefix:
-//   "arn:aws:s3:::YOUR_BUCKET/logs/*"
 
 /* ================= OTA ================= */
 // Raw URL to version.json in your GitHub repo, e.g.:
@@ -58,13 +48,10 @@
 #define OTA_MANIFEST_URL ""
 // Bump FIRMWARE_VERSION in ota_updater.h before each release
 
-
-#define DEBUG 1
-
 /* ================= SD CARD ================= */
-#define SD_LOG_DIR      ""
+#define SD_LOG_DIR      "/ufar_project"
 // Single combined log file — all logs and data rows, appended forever
-#define SD_LOG_FILE     ""
+#define SD_LOG_FILE     "/ufar_project/device_" DEVICE_ID "_log.txt"
 // Pending queue: one JSON payload per line, retried when connectivity returns
-#define SD_QUEUE_FILE   ""
+#define SD_QUEUE_FILE   "/ufar_project/pending_queue.txt"
 

@@ -7,5 +7,3 @@
 bool connectWiFi();
 bool syncTime();
 void disconnectWiFi();
-void setCPUSpeed80();
-void setCPUSpeed240();

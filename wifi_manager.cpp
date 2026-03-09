@@ -4,25 +4,24 @@
 #include <esp_wifi.h>
 #include <Arduino.h>
 
-void setCPUSpeed80() {
-    setCpuFrequencyMhz(80);
-}
-
-void setCPUSpeed240() {
-    setCpuFrequencyMhz(240);
-}
 bool connectWiFi() {
   logToSD("[WIFI] Connecting to WiFi...");
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  
+
   unsigned long startAttempt = millis();
-  while (WiFi.status() != WL_CONNECTED && 
+  unsigned long lastCheck = 0;
+
+  while (WiFi.status() != WL_CONNECTED &&
          millis() - startAttempt < WIFI_TIMEOUT_SEC * 1000) {
-    delay(500);
+
+    if (millis() - lastCheck >= 500) {
+      lastCheck = millis();
+      // optional debug or watchdog feed
+    }
   }
-  
+
   if (WiFi.status() == WL_CONNECTED) {
     logToSD("[WIFI] Connected! IP: " + WiFi.localIP().toString());
     return true;
@@ -35,9 +34,6 @@ bool connectWiFi() {
 void disconnectWiFi() {
   if (WiFi.status() == WL_CONNECTED || WiFi.getMode() != WIFI_OFF) {
     logToSD("[WIFI] Disconnecting...");
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-    esp_wifi_stop();
     esp_wifi_deinit();
   }
 }
@@ -45,23 +41,21 @@ void disconnectWiFi() {
 bool syncTime() {
   logToSD("[TIME] Syncing NTP (Armenia UTC+4)...");
 
-  // Use multiple servers for reliability
   configTime(ARMENIA_TZ_OFFSET, ARMENIA_DST_OFFSET,
              "pool.ntp.org", "time.nist.gov", "time.google.com");
 
-  // Wait up to 30 seconds — NTP can be slow on first connect
   unsigned long startAttempt = millis();
+  unsigned long lastPrint = 0;
+
   while (time(nullptr) < 100000 && millis() - startAttempt < 30000) {
-    delay(500);
-    #if DEBUG
-    Serial.print(".");
-    #endif
+
+    if (millis() - lastPrint >= 500) {
+      lastPrint = millis();
+    }
   }
-  #if DEBUG
-  Serial.println();
-  #endif
 
   time_t now = time(nullptr);
+
   if (now < 100000) {
     logToSD("[TIME] ERROR: NTP sync failed after 30s");
     return false;

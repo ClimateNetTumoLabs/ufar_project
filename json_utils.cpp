@@ -32,10 +32,10 @@ String prepareJSON(const char* deviceId, time_t t, MeasurementData data) {
 }
 
 bool sendHTTP(String payload) {
-  logToSD("[HTTP] Sending to: " + String(POST_URL));
+  logToSD("[HTTP] Sending to: " + String(DATA_URL));
 
   HTTPClient http;
-  http.begin(POST_URL);
+  http.begin(DATA_URL);
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(15000);
 
