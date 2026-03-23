@@ -100,7 +100,6 @@ bool checkAndApplyOTA() {
   switch (result) {
     case HTTP_UPDATE_OK:
       logToSD("[OTA] Update successful! Rebooting to v" + String(remoteVersion) + "...");
-      flushSDLog();
       delay(500);
       ESP.restart();
       return true; // never reached but satisfies compiler
