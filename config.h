@@ -1,23 +1,20 @@
 #pragma once
 
-/* ================= WIFI ================= */
-#define WIFI_SSID ""
-#define WIFI_PASS ""
-#define WIFI_TIMEOUT_SEC 30
-
+/* ================= SIM / APN ================= */
+#define MODEM_APN ""   // your carrier APN
 /* ================= DEVICE ================= */
 #define DEVICE_ID ""
 #define DATA_URL ""
 
 /* ================= MEASUREMENT INTERVALS ================= */
 // Send interval in minutes
-#define MEASURE_INTERVAL_MIN 20
+#define MEASURE_INTERVAL_MIN 10
 
 // SPS30 warm-up time in seconds
 #define SPS30_WARMUP_SEC 30
 
 // Measurement duration in seconds
-#define SAMPLE_DURATION_SEC 120
+#define SAMPLE_DURATION_SEC 180
 
 // Interval between samples during measurement
 #define SAMPLE_INTERVAL_SEC 2
@@ -41,12 +38,6 @@
 #define SD_MOSI     15
 #define SD_SCLK     14
 #define SD_CS       13
-
-/* ================= OTA ================= */
-// Raw URL to version.json in your GitHub repo, e.g.:
-// https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/firmware/version.json
-#define OTA_MANIFEST_URL ""
-// Bump FIRMWARE_VERSION in ota_updater.h before each release
 
 /* ================= SD CARD ================= */
 #define SD_LOG_DIR      "/ufar_project"

@@ -3,23 +3,22 @@
 #include "config.h"
 #include "sensors.h"
 #include "sd_logger.h"
-#include "wifi_manager.h"
+#include "sim_manager.h"
 #include "rtc_utils.h"
 #include "json_utils.h"
-#include "ota_updater.h"
 
-// ===================== RTC Memory (persists through deep sleep) =====================
+// ===================== RTC Memory =====================
 RTC_DATA_ATTR time_t lastMeasurementTime = 0;
 RTC_DATA_ATTR uint32_t bootCount = 0;
 RTC_DATA_ATTR bool timeIsSynced = false;
 
-// ===================== Sensor Objects =====================
+// ===================== Sensors =====================
 BME280Sensor bme280;
 SCD30Sensor  scd30;
 SGP40Sensor  sgp40;
 SPS30Sensor  sps30;
 
-// ===================== Measurement Data =====================
+// ===================== Data Struct =====================
 struct SensorReadings {
   float temperature = 0.0;
   float humidity = 0.0;
@@ -32,7 +31,7 @@ struct SensorReadings {
   int validSamples = 0;
 };
 
-// ===================== Sensor Initialization =====================
+// ===================== Sensor Init =====================
 bool initAllSensors() {
   Wire.begin();
   Wire.setClock(100000);
@@ -40,24 +39,20 @@ bool initAllSensors() {
 
   bool allOk = true;
 
-    if (!bme280.init()) { logToSD("[BME280] ERROR: Init failed"); allOk = false; }
-    if (!scd30.init()) { logToSD("[SCD30] ERROR: Init failed"); allOk = false; }
-    if (!sgp40.init()) { logToSD("[SGP40] ERROR: Init failed"); allOk = false; }
-    if (!sps30.init()) { logToSD("[SPS30] ERROR: Init failed"); allOk = false; }
-
-  if (!allOk)
-    logToSD("[SENSORS] WARNING: Some sensors failed init");
+  if (!bme280.init()) { logToSD("[BME280] ERROR"); allOk = false; }
+  if (!scd30.init()) { logToSD("[SCD30] ERROR"); allOk = false; }
+  if (!sgp40.init()) { logToSD("[SGP40] ERROR"); allOk = false; }
+  if (!sps30.init()) { logToSD("[SPS30] ERROR"); allOk = false; }
 
   return allOk;
 }
 
-// ===================== Sensor Start/Stop =====================
+// ===================== Sensor Control =====================
 void startAllSensors(float pressure_hPa) {
   bme280.start();
   scd30.start((uint16_t)pressure_hPa);
   sgp40.start();
-  if (!sps30.start())
-    logToSD("[SPS30] ERROR: Failed to start");
+  sps30.start();
 }
 
 void stopAllSensors() {
@@ -67,257 +62,218 @@ void stopAllSensors() {
   sps30.stop();
 }
 
-// ===================== Single Reading =====================
-bool takeSingleReading(SensorReadings &reading) {
-  float temp, hum, press;
+// ===================== Read =====================
+bool takeSingleReading(SensorReadings &r) {
+  float t, h, p;
 
-  if (bme280.read(temp, hum, press)) {
-    reading.temperature += temp;
-    reading.humidity += hum;
-    reading.pressure += press;
-  } else {
-    logToSD("[BME280] ERROR: Read failed");
+  if (bme280.read(t, h, p)) {
+    r.temperature += t;
+    r.humidity += h;
+    r.pressure += p;
   }
 
   float co2;
-  if (scd30.read(co2)) {
-    reading.co2 += co2;
-  } else {
-    logToSD("[SCD30] WARNING: Data not ready");
-  }
+  if (scd30.read(co2)) r.co2 += co2;
 
   int32_t voc;
-  if (sgp40.read(voc, temp, hum)) {
-    reading.vocIndex += voc;
-  } else {
-    logToSD("[SGP40] ERROR: Read failed");
-  }
+  if (sgp40.read(voc, t, h)) r.vocIndex += voc;
 
   float pm1, pm25, pm10;
   if (sps30.read(pm1, pm25, pm10)) {
-    reading.pm1 += pm1;
-    reading.pm25 += pm25;
-    reading.pm10 += pm10;
-  } else {
-    logToSD("[SPS30] WARNING: Data not ready");
+    r.pm1 += pm1;
+    r.pm25 += pm25;
+    r.pm10 += pm10;
   }
 
-  reading.validSamples++;
+  r.validSamples++;
   return true;
 }
 
-// ===================== Measurement Cycle =====================
+// ===================== Measurement =====================
 void performMeasurementCycle(MeasurementData &finalData) {
-  SensorReadings accumulated;
+  SensorReadings acc;
 
-  float temp, hum, press;
-  bme280.read(temp, hum, press);
+  float t, h, p;
+  bme280.read(t, h, p);
 
-  startAllSensors(press);
+  startAllSensors(p);
   delay(SPS30_WARMUP_SEC * 1000);
-  logToSD("[MEASURE] Starting measurement");
-  int numSamples = SAMPLE_DURATION_SEC / SAMPLE_INTERVAL_SEC;
 
-  for (int i = 0; i < numSamples; i++) {
-    takeSingleReading(accumulated);
-    if (i < numSamples - 1) delay(SAMPLE_INTERVAL_SEC * 1000);
+  int samples = SAMPLE_DURATION_SEC / SAMPLE_INTERVAL_SEC;
+
+  for (int i = 0; i < samples; i++) {
+    takeSingleReading(acc);
+    if (i < samples - 1) delay(SAMPLE_INTERVAL_SEC * 1000);
   }
 
-  if (accumulated.validSamples > 0) {
-    finalData.temperature = accumulated.temperature / accumulated.validSamples;
-    finalData.humidity    = accumulated.humidity    / accumulated.validSamples;
-    finalData.pressure    = accumulated.pressure    / accumulated.validSamples;
-    finalData.co2         = accumulated.co2         / accumulated.validSamples;
-    finalData.voc         = accumulated.vocIndex    / accumulated.validSamples;
-    finalData.pm1         = accumulated.pm1         / accumulated.validSamples;
-    finalData.pm25        = accumulated.pm25        / accumulated.validSamples;
-    finalData.pm10        = accumulated.pm10        / accumulated.validSamples;
-
-    logToSD("[MEASURE] T=" + String(finalData.temperature, 1) +
-            "C H=" + String(finalData.humidity, 1) +
-            "% P=" + String(finalData.pressure, 1) +
-            "hPa CO2=" + String((int)finalData.co2) +
-            "ppm VOC=" + String(finalData.voc) +
-            " PM2.5=" + String(finalData.pm25, 2) + "ug/m3");
-  } else {
-    logToSD("[MEASURE] ERROR: No valid samples collected");
+  if (acc.validSamples > 0) {
+    finalData.temperature = acc.temperature / acc.validSamples;
+    finalData.humidity    = acc.humidity / acc.validSamples;
+    finalData.pressure    = acc.pressure / acc.validSamples;
+    finalData.co2         = acc.co2 / acc.validSamples;
+    finalData.voc         = acc.vocIndex / acc.validSamples;
+    finalData.pm1         = acc.pm1 / acc.validSamples;
+    finalData.pm25        = acc.pm25 / acc.validSamples;
+    finalData.pm10        = acc.pm10 / acc.validSamples;
   }
 
   stopAllSensors();
 }
 
-// ===================== Data Transmission =====================
-bool sendData(time_t timestamp, MeasurementData &data) {
-  logDataToFile(timestamp, data.temperature, data.humidity, data.pressure,
+// ===================== SEND =====================
+bool sendData(time_t ts, MeasurementData &data) {
+  logDataToFile(ts, data.temperature, data.humidity, data.pressure,
                 data.co2, data.voc, data.pm1, data.pm25, data.pm10);
 
-  if (!connectWiFi()) {
-    logToSD("[SEND] ERROR: WiFi failed - data queued");
-    queueFailedData(timestamp, data);
+  delay(100);
+  simPowerOn();
+
+  if (!connectSIM()) {
+    simPowerOff();
+    delay(500);
     return false;
   }
 
-  String payload = prepareJSON(DEVICE_ID, timestamp, data);
+  String payload = prepareJSON(DEVICE_ID, ts, data);
+  bool ok = sendHTTPSIM(payload);
 
-  #if DEBUG
-  logToSD("[SEND] JSON: " + payload);
-  #endif
+  disconnectSIM();
+  simPowerOff();
+  delay(500);
 
-  bool success = sendHTTP(payload);
-
-  if (success) {
-    logToSD("[SEND] OK");
-  } else {
-    logToSD("[SEND] ERROR: API failed - data queued");
-    queueFailedData(timestamp, data);
-  }
-
-  return success;
+  return ok;
 }
 
-void enterDeepSleep(uint64_t sleepTimeSeconds) {
-    logToSD("[SLEEP] " + String((uint32_t)sleepTimeSeconds) +
-            "s, wake: " + timeToStr(time(nullptr) + sleepTimeSeconds));
-    esp_sleep_enable_timer_wakeup(sleepTimeSeconds * 1000000ULL);
-    esp_deep_sleep_start();
-}
+// ===================== Sleep =====================
+void enterDeepSleep(uint64_t sec) {
 
-// ===================== Setup =====================
-void setup(){
+  logToSD("[SLEEP] Preparing for deep sleep");
+
+  disconnectSIM();
+  delay(200);
+
+  simPowerOff();   // 🔥 CRITICAL
+  delay(500);
+
+  esp_sleep_enable_timer_wakeup(sec * 1000000ULL);
+
+#if DEBUG
+  Serial.flush();
+  delay(100);
+#endif
+
+  esp_deep_sleep_start();
+}
+// ===================== SETUP =====================
+void setup() {
   bootCount++;
 
-  #if DEBUG
+#if DEBUG
   Serial.begin(115200);
-  Serial.println("\n\n========== BOOT " + String(bootCount) + " ==========");
-  #endif
+#endif
 
-  // ── 1. SD Card ────────────────────────────────
-  if (!initSDCard()) {
-    #if DEBUG
-    Serial.println("SD card init failed - continuing anyway");
-    #endif
-  }
-  logToSD("[SYSTEM] Boot #" + String(bootCount));
-
-  bool wifiOk = false;
-  for (int attempt = 1; attempt <= 3 && !wifiOk; attempt++) {
-    if (connectWiFi()) {
-      wifiOk = true;
-    } else {
-      logToSD("[WIFI] Failed (attempt " + String(attempt) + "/3)");
-      delay(2000);
-    }
-  }
-
-  if (!wifiOk) {
-    logToSD("[SYSTEM] CRITICAL: No WiFi - rebooting in 60s");
-    esp_sleep_enable_timer_wakeup(60ULL * 1000000ULL);
-    esp_deep_sleep_start();
-  }
-
-  // ── 3. Time sync ──────────────────────────────
-  if (!timeIsSynced) {
-    bool synced = false;
-    for (int attempt = 1; attempt <= 3 && !synced; attempt++) {
-      if (syncTime()) {
-        synced = true;
-        timeIsSynced = true;
-      } else {
-        logToSD("[NTP] Failed (attempt " + String(attempt) + "/3)");
-        delay(3000);
-      }
-    }
-
-    if (!synced) {
-      logToSD("[SYSTEM] CRITICAL: NTP failed - rebooting in 60s");
-      esp_sleep_enable_timer_wakeup(60ULL * 1000000ULL);
-      esp_deep_sleep_start();
-    }
-  }
-
-  configTime(ARMENIA_TZ_OFFSET, ARMENIA_DST_OFFSET,
-             "pool.ntp.org", "time.nist.gov", "time.google.com");
-  delay(100);
+  initSDCard();
+  logToSD("\n===== BOOT #" + String(bootCount) + " =====");
 
   time_t now = time(nullptr);
 
+  // ===================== STEP 1: TIME SYNC (ONLY IF NEEDED) =====================
+  if (!timeIsSynced || now < 100000) {  // invalid time check
+
+    logToSD("[TIME] Sync required");
+
+    simPowerOn();
+
+    if (!connectSIM()) {
+      logToSD("[SIM] Failed to connect for time sync");
+      simPowerOff();
+      enterDeepSleep(60);
+    }
+
+    if (!syncTimeSIM()) {
+      logToSD("[TIME] Sync failed");
+      disconnectSIM();
+      simPowerOff();
+      enterDeepSleep(60);
+    }
+
+    now = time(nullptr);
+
+    timeIsSynced = true;
+    lastMeasurementTime = now;   // 🔥 IMPORTANT
+
+    disconnectSIM();
+    simPowerOff();
+    delay(500);
+  }
+
+  // ===================== STEP 2: CALCULATE NEXT MEASUREMENT =====================
+  now = time(nullptr);
+
+  uint32_t needed = SPS30_WARMUP_SEC + SAMPLE_DURATION_SEC;
+
+  time_t nextSend = calculateNextSend(now, lastMeasurementTime, MEASURE_INTERVAL_MIN);
+  time_t startMeas = nextSend - needed;
+
+  bool shouldMeasure = false;
+
   if (bootCount == 1) {
-    lastMeasurementTime = now;
-    logToSD("[SYSTEM] First boot: " + timeToStr(now));
+    // First boot → measure immediately after sync
+    shouldMeasure = true;
+    nextSend = now;
+  } else {
+    shouldMeasure = (now >= startMeas - 30 && now < nextSend);
   }
 
-  // ── 4. OTA + flush offline queue ──────────────
-  if (hasPendingQueue()) {
-    logToSD("[SYSTEM] Flushing offline queue...");
-    flushPendingQueue();
-  }
-  checkAndApplyOTA();
-
-  // ── 6. Measurement window calculation ─────────
-  uint32_t measurementTimeNeeded = SPS30_WARMUP_SEC + SAMPLE_DURATION_SEC;
-  time_t nextSendTime       = calculateNextSend(now, lastMeasurementTime, MEASURE_INTERVAL_MIN);
-  time_t startMeasurementTime = nextSendTime - measurementTimeNeeded;
-
-  bool shouldMeasure       = (bootCount == 1) ||
-                             (now >= startMeasurementTime - 30 && now < nextSendTime);
-  time_t measurementTimestamp = nextSendTime;
-
-  if (now >= nextSendTime) {
-    logToSD("[SYSTEM] WARNING: Missed window, rescheduling");
-    lastMeasurementTime     = now;
-    nextSendTime            = calculateNextSend(now, lastMeasurementTime, MEASURE_INTERVAL_MIN);
-    startMeasurementTime    = nextSendTime - measurementTimeNeeded;
-    measurementTimestamp    = nextSendTime;
-    shouldMeasure           = false;
-  }
-
-  // ── 6. Measure ────────────────────────────────
+  // ===================== STEP 3: MEASUREMENT =====================
   if (shouldMeasure) {
-    if (!initAllSensors())
-      logToSD("[SYSTEM] WARNING: Some sensors failed init");
 
-    MeasurementData data;
+    logToSD("[MEASURE] Starting");
+
+    initAllSensors();
+
+    static MeasurementData data;
     performMeasurementCycle(data);
 
-    if (bootCount == 1)
-      measurementTimestamp = time(nullptr);
+    time_t ts = (bootCount == 1) ? time(nullptr) : nextSend;
 
-    logToSD("[SYSTEM] Timestamp: " + timeToStr(measurementTimestamp));
+    // ===================== STEP 4: SEND =====================
+    logToSD("[SEND] Starting");
 
-    // ── 7. Send ───────────────────────────────────
-    bool wifiReady = false;
-    for (int attempt = 1; attempt <= 3 && !wifiReady; attempt++) {
-      if (connectWiFi()) { wifiReady = true; break; }
-      logToSD("[WIFI] Reconnect failed (attempt " + String(attempt) + "/3)");
-      delay(2000);
-    }
+    simPowerOn();
 
-    if (wifiReady) {
-      bool sent = sendData(measurementTimestamp, data);
-      if (sent) {
-        lastMeasurementTime = measurementTimestamp;
-      }
+    bool sent = false;
+
+    if (connectSIM()) {
+      sent = sendHTTPSIM(prepareJSON(DEVICE_ID, ts, data));
+      disconnectSIM();
     } else {
-      logToSD("[SEND] No WiFi - queuing data");
-      queueFailedData(measurementTimestamp, data);
-      lastMeasurementTime = measurementTimestamp;
+      logToSD("[SIM] Connect failed (send)");
     }
 
-    now                  = time(nullptr);
-    nextSendTime         = calculateNextSend(now, lastMeasurementTime, MEASURE_INTERVAL_MIN);
-    startMeasurementTime = nextSendTime - measurementTimeNeeded;
+    if (sent) {
+      logToSD("[SEND] Success");
+      lastMeasurementTime = ts;
+    } else {
+      logToSD("[SEND] Failed (data lost)");
+      lastMeasurementTime = ts; // still move forward
+    }
   }
 
-  // ── 8. Deep sleep ─────────────────────────────
+  // ===================== STEP 5: SLEEP =====================
   now = time(nullptr);
-  uint64_t sleepSeconds = (startMeasurementTime > now + 10)
-                          ? (startMeasurementTime - now) - 10
-                          : 10;
 
-  enterDeepSleep(sleepSeconds);
+  nextSend = calculateNextSend(now, lastMeasurementTime, MEASURE_INTERVAL_MIN);
+  startMeas = nextSend - needed;
+
+  uint64_t sleepSec = (startMeas > now + 10)
+                      ? (startMeas - now - 10)
+                      : 10;
+
+  logToSD("[SLEEP] " + String((uint32_t)sleepSec) + " sec");
+
+  enterDeepSleep(sleepSec);
 }
 
-// ===================== Loop =====================
-void loop() {
-  // Never reached - ESP is always in deep sleep between measurements
-}
+// ===================== LOOP =====================
+void loop() {}
