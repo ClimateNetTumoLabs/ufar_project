@@ -12,6 +12,7 @@ String prepareJSON(const char* deviceId, time_t t, MeasurementData data) {
   char buffer[20];
   snprintf(buffer, sizeof(buffer), "device%s", deviceId);
   doc["device"] = buffer;
+  doc["tz_source"] = TZ_SOURCE;
   JsonObject d = doc.createNestedArray("data").createNestedObject();
   d["time"] = timeToStr(t);
   d["temperature"] = data.temperature;

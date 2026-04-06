@@ -5,16 +5,17 @@
 /* ================= DEVICE ================= */
 #define DEVICE_ID ""
 #define DATA_URL ""
+#define TZ_SOURCE "sim"   // or "wifi"
 
 /* ================= MEASUREMENT INTERVALS ================= */
 // Send interval in minutes
-#define MEASURE_INTERVAL_MIN 10
+#define MEASURE_INTERVAL_MIN 20
 
 // SPS30 warm-up time in seconds
 #define SPS30_WARMUP_SEC 30
 
 // Measurement duration in seconds
-#define SAMPLE_DURATION_SEC 180
+#define SAMPLE_DURATION_SEC 120
 
 // Interval between samples during measurement
 #define SAMPLE_INTERVAL_SEC 2
