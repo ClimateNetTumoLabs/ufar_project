@@ -6,9 +6,9 @@
 #define WIFI_TIMEOUT_SEC 30
 
 /* ================= DEVICE ================= */
-#define DEVICE_ID ""
-#define DATA_URL ""
-
+#define DEVICE_ID "" // add only the number
+#define DATA_URL "" // API that triggers fromEspToRDS lambda
+#define TZ_SOURCE "wifi"   // or "sim"
 /* ================= MEASUREMENT INTERVALS ================= */
 // Send interval in minutes
 #define MEASURE_INTERVAL_MIN 20
