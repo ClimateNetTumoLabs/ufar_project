@@ -1,3 +1,3 @@
-{ "version": "1.0.1",
-  "url": "https://raw.githubusercontent.com/ClimateNetTumoLabs/ufar_project/main/firmware/firmware.bin"
+{ "version": "1.0.2",
+  "url": "https://raw.githubusercontent.com/ClimateNetTumoLabs/ufar_project/sim_version/firmware.bin"
 }
